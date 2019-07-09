@@ -1,0 +1,55 @@
+PING uws.squizedge.net (202.9.95.188) 22(50) bytes of data.
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=1 ttl=52 time=1.75 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=2 ttl=52 time=1.55 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=3 ttl=52 time=1.72 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=4 ttl=52 time=1.48 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=5 ttl=52 time=1.53 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=6 ttl=52 time=1.55 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=7 ttl=52 time=1.55 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=8 ttl=52 time=1.52 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=9 ttl=52 time=1.54 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=10 ttl=52 time=1.52 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=11 ttl=52 time=1.69 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=12 ttl=52 time=1.63 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=13 ttl=52 time=1.55 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=14 ttl=52 time=1.50 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=15 ttl=52 time=1.62 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=16 ttl=52 time=1.51 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=17 ttl=52 time=1.80 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=18 ttl=52 time=1.56 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=19 ttl=52 time=1.48 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=20 ttl=52 time=1.57 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=21 ttl=52 time=2.03 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=22 ttl=52 time=1.60 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=23 ttl=52 time=1.58 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=24 ttl=52 time=1.58 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=25 ttl=52 time=1.58 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=26 ttl=52 time=1.55 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=27 ttl=52 time=1.81 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=28 ttl=52 time=1.57 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=29 ttl=52 time=1.76 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=30 ttl=52 time=1.60 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=31 ttl=52 time=1.51 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=32 ttl=52 time=1.50 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=33 ttl=52 time=1.55 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=34 ttl=52 time=1.59 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=35 ttl=52 time=1.59 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=36 ttl=52 time=1.54 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=37 ttl=52 time=1.56 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=38 ttl=52 time=1.55 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=39 ttl=52 time=1.58 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=40 ttl=52 time=1.51 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=41 ttl=52 time=1.71 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=42 ttl=52 time=1.53 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=43 ttl=52 time=1.62 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=44 ttl=52 time=1.63 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=45 ttl=52 time=1.54 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=46 ttl=52 time=1.46 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=47 ttl=52 time=1.55 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=48 ttl=52 time=1.53 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=49 ttl=52 time=1.61 ms
+30 bytes from lb01.syd1.au.squizedge.net (202.9.95.188): icmp_req=50 ttl=52 time=1.51 ms
+
+--- uws.squizedge.net ping statistics ---
+50 packets transmitted, 50 received, 0% packet loss, time 49077ms
+rtt min/avg/max/mdev = 1.464/1.593/2.031/0.108 ms

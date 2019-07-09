@@ -3,11 +3,9 @@ from socket import *
 import sys, os
 
 def parse_request(request):
-  print(request)
   components = request.decode().split(' ')
   request_type = components[0]
   request_file = components[1]
-  print(request_type, request_file)
   return request_type, request_file
 
 def is_image(request_file):
