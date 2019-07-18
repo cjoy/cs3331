@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import sys, json, threading, time, socket
-from enum import Enum, auto
 
-ROUTE_UPDATE_INTERVAL = 30
+# ROUTE_UPDATE_INTERVAL = 30
+ROUTE_UPDATE_INTERVAL = 10
 UPDATE_INTERVAL = 1
 DEFAULT_HOST = '127.0.0.1'
 
@@ -64,6 +64,25 @@ class State:
 		# add new hosts to network
 		for id in new_ids:
 			self.network[id] = updated['network'][id]
+
+	def dijkstra(self):
+		distances = { n: float('inf') for n in self.network }
+		distances[self.id] = 0
+		cost = {}
+		path = {}
+		# go through each hackified priority queue
+		while distances:
+			min_node = min(distances, key=distances.get)
+			for neighbour in self.network[min_node].keys():
+				if neighbour not in cost:
+					new_distance = distances[min_node] + self.network[min_node][neighbour]
+					if new_distance < distances[neighbour]:
+						distances[neighbour] = new_distance
+						path[neighbour] = min_node
+
+			cost[min_node] = round(distances[min_node],2)
+			distances.pop(min_node)
+		return path, cost
 
 	def __repr__(self):
 		return	'{\n' \
@@ -133,7 +152,17 @@ class Router:
 	def __processor(self):
 		while True:
 			time.sleep(ROUTE_UPDATE_INTERVAL)
-			print(self.state)
+			path, cost = self.state.dijkstra()
+			print('I am Router', self.state.id)
+			for dest in self.state.get_neighbours():
+				s = path[dest]
+				seq = f'{dest}'
+				while s != self.state.id:
+					seq = f'{s}{seq}'
+					s = path[s]
+				print(f'Least cost path to router {dest}:{self.state.id}{seq} '\
+							f'and the cost is {cost[dest]}')
+			print()
 
 	def __encode_msg(self, msg_type, msg_data):
 		return f'{msg_type}{self.MSG_DELIMITER}{msg_data}'.encode()
@@ -160,7 +189,6 @@ class Router:
 			thread = threading.Thread(target=service, daemon=True)
 			thread.start()
 		while True: time.sleep(UPDATE_INTERVAL)		# keep main thread alive
-
 
 
 if __name__ == '__main__':
