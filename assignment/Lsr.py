@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 import sys, json, threading, time, socket
 
-# ROUTE_UPDATE_INTERVAL = 30
-ROUTE_UPDATE_INTERVAL = 10
+ROUTE_UPDATE_INTERVAL = 30
 UPDATE_INTERVAL = 1
 DEFAULT_HOST = '127.0.0.1'
 
