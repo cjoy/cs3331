@@ -65,29 +65,29 @@ class State:
 			self.network[id] = updated['network'][id]
 
 	def dijkstra(self):
-		distances = { n: float('inf') for n in self.network }
-		distances[self.id] = 0
+		dists = { n: float('inf') for n in self.network }
+		dists[self.id] = 0
 		cost = {}
 		path = {}
-		# go through each hackified priority queue
-		while distances:
-			min_node = min(distances, key=distances.get)
+		# go through each node with min_distance
+		while dists:
+			min_node = min(dists, key=dists.get)
 			for neighbour in self.network[min_node].keys():
 				if neighbour not in cost:
-					new_distance = distances[min_node] + self.network[min_node][neighbour]
-					if new_distance < distances[neighbour]:
-						distances[neighbour] = new_distance
+					new_dist = dists[min_node] + self.network[min_node][neighbour]
+					if new_dist < dists[neighbour]:
+						dists[neighbour] = new_dist
 						path[neighbour] = min_node
 
-			cost[min_node] = round(distances[min_node],2)
-			distances.pop(min_node)
+			cost[min_node] = round(dists[min_node],2)
+			dists.pop(min_node)
 		return path, cost
 
 	def __repr__(self):
 		return	'{\n' \
-						f'\tnetwork: {json.dumps(self.network, sort_keys=True)},\n' \
-						f'\tinfo: {json.dumps(self.info, sort_keys=True)},\n' \
-						'\n}'
+				f'\tnetwork: {json.dumps(self.network, sort_keys=True)},\n' \
+				f'\tinfo: {json.dumps(self.info, sort_keys=True)},\n' \
+				'\n}'
 
 
 class Router:
