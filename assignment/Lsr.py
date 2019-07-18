@@ -2,7 +2,7 @@
 import sys, json, threading, time, socket
 
 
-DEFAULT_HOST = '127.0.0.1'  # constant host since all routers are on the same machine
+DEFAULT_HOST = '127.0.0.1'
 ROUTE_UPDATE_INTERVAL = 30
 UPDATE_INTERVAL = 1
 
@@ -22,7 +22,7 @@ class State:
 		self.network[dest_id][src_id] = float(weight)
 	
 	def set_info(self, id, host, port):
-			self.info[id] = (host, int(port))
+			self.info[id] = [host, int(port)]
 
 	def get_info(self, id):
 		return self.info[id]
@@ -33,7 +33,7 @@ class State:
 	def get_neighbours_info(self):
 		info = self.info.copy()
 		del info[self.id]
-		return list(tuple(t) for t in info.values())
+		return info.values()
 
 	def serialize(self):
 		return json.dumps({ 'network': self.network , 'info': self.info })
@@ -78,8 +78,7 @@ class Router:
 					self.state.set_link(self.state.id, id, weight)
 			file.close()
 		except Exception as e:
-			print(f'Error loading {config_path}')
-			print(e)
+			print(f'Error loading {config_path}', e)
 
 	def __broadcaster(self):
 		while True:
@@ -89,21 +88,23 @@ class Router:
 			message = self.state.serialize()
 			if message not in self.broadcasts:
 				for host_info in self.state.get_neighbours_info():
-					client_socket.sendto(message.encode(), host_info)
-					try:
-						response, server = client_socket.recvfrom(1024)
-					except socket.timeout:
-						# print('Broadcast Error: ', host_info)
-						pass
+					client_socket.sendto(message.encode(), tuple(host_info))
+					# acknolodge sent
+					# try:
+					# 	response, server = client_socket.recvfrom(1024)
+					# except socket.timeout:
+					# 	print('Broadcast Error: ', host_info)
+					# 	pass
 				self.broadcasts.add(message)
 
 	def __listener(self):
 		server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		server_socket.bind(self.state.get_my_info())
+		server_socket.bind(tuple(self.state.get_my_info()))
 		while True:
 			response, address = server_socket.recvfrom(1024)
 			self.state.update_state(response.decode())
-			server_socket.sendto(response, address)
+			# acknolodge recieved
+			# server_socket.sendto(response, address)
 
 	def __processor(self):
 		while True:
