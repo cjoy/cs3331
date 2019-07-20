@@ -1,23 +1,27 @@
 #!/usr/bin/env python3
 import json, pickle,  time, threading, socket, sys
 
-# ROUTE_UPDATE_INTERVAL = 30
-ROUTE_UPDATE_INTERVAL = 1
+ROUTE_UPDATE_INTERVAL = 30
 UPDATE_INTERVAL = 1
 DEFAULT_HOST = '127.0.0.1'
 
 class State:
+	'''
+	State contains a view of the router's network topology
+	and information about each host (ie. address:port). 
+		* We're using an Adjancy List (via nested dictionaries)
+			for fast lookup, insertion and deletion.
+	'''
 	def __init__(self):
 		self.id = None
 		self.network = dict()
 		self.info = dict()
-		self.initial_neighbours = set()
 
-	def update_state(self, serialized_state):
-		new = self.deserialize(serialized_state)
-		self.info = { **self.info, **new['info'] }
-		for k in new['edges'].keys():
-			self.set_link(new['id'], k, new['edges'][k])
+	def update_state(self, serialized_packet):
+		packet = self.deserialize_packet(serialized_packet)
+		self.info = { **self.info, **packet['info'] }
+		for k in packet['links'].keys():
+			self.set_link(packet['src'], k, packet['links'][k])
 
 	def dijkstra(self, network):
 		dists = { n: float('inf') for n in network }
@@ -33,7 +37,6 @@ class State:
 					if new_dist < dists[neighbour]:
 						dists[neighbour] = new_dist
 						path[neighbour] = min_node
-
 			cost[min_node] = round(dists[min_node],2)
 			dists.pop(min_node)
 		return path, cost
@@ -59,7 +62,7 @@ class State:
 				del self.network[k][id]
 
 	def set_info(self, id, host, port):
-			self.info[id] = [host, int(port)]
+		self.info[id] = [host, int(port)]
 
 	def get_info(self, id):
 		return self.info[id]
@@ -69,14 +72,11 @@ class State:
 		neighbours.remove(self.id)
 		return neighbours
 
-	def add_initial_neighbour(self, id):
-		self.initial_neighbours.add(id)
+	def serialize_packet(self):
+		return json.dumps({ 'src': self.id, 'links': self.network[self.id], 'info': self.info })
 
-	def serialize(self):
-		return json.dumps({ 'id': self.id, 'edges': self.network[self.id], 'info': self.info })
-
-	def deserialize(self, serialized):
-		return json.loads(serialized)
+	def deserialize_packet(self, serialized_packet):
+		return json.loads(serialized_packet)
 
 	def __repr__(self):
 		return	'{\n' \
@@ -87,12 +87,14 @@ class State:
 
 class Router:
 	'''
-	Router is an abstraction of a link state router variant that uses
-	the Hello protocol to deal with router failures.
+	Router is an abstraction of a Link State Router variant that uses
+	the Hello protocol to deal with router failures. 
+		* Link State Packets are send every UPDATE_INTERVAL.
+		* Link State Packets are broadcasted to neighbours, every time they're recieved
 	'''
-	MSG_STATE = 'STATE'
-	MSG_DELIMITER = '|'
+	MSG_PACKET = 'PACKET'
 	MSG_HELLO = 'HELLO'
+	MSG_DELIMITER = '|'
 	HELLO_TTL = 3
 
 	def __init__(self):
@@ -103,21 +105,30 @@ class Router:
 	def __broadcaster(self):
 		while True:
 			time.sleep(UPDATE_INTERVAL)
-			self.__broadcast()
+			self.__broadcast_packet(self.state.serialize_packet(), self.state.id)
+			self.__broadcast_hello()
 
-	def __broadcast(self):
+	def __broadcast_packet(self, packet, owner):
 		client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		client_socket.settimeout(1.0)
-		state_message = self.__encode_msg(self.MSG_STATE, self.state.serialize())
-		hello_message = self.__encode_msg(self.MSG_HELLO, self.state.id)
-		for id in self.state.get_neighbours():
+		packet_message = self.__encode_msg(self.MSG_PACKET, packet, self.state.id)
+		# broadcast packet to all neighbours, except originated source
+		neighbours = set(self.state.get_neighbours())
+		neighbours.discard(owner)
+		for id in neighbours:
 			host_info = self.state.get_info(id)
 			if id not in self.broadcasts:
 				self.broadcasts[id] = set()
 			# send state message to neighbours
-			if state_message not in self.broadcasts[id]:
-				client_socket.sendto(state_message, tuple(host_info))
-				self.broadcasts[id].add(state_message)
+			if packet_message not in self.broadcasts[id]:
+				client_socket.sendto(packet_message, tuple(host_info))
+				self.broadcasts[id].add(packet_message)
+		client_socket.close()
+
+	def __broadcast_hello(self):
+		client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+		hello_message = self.__encode_msg(self.MSG_HELLO, self.state.id, self.state.id)
+		for id in self.state.get_neighbours():
+			host_info = self.state.get_info(id)
 			# send state hello to neighbours (keep-alive)
 			client_socket.sendto(hello_message, tuple(host_info))
 		client_socket.close()
@@ -127,12 +138,12 @@ class Router:
 		server_socket.bind(tuple(self.state.get_info(self.state.id)))
 		while True:
 			response, address = server_socket.recvfrom(1024)
-			msg_type, msg_data = self.__decode_msg(response)
-			if msg_type == self.MSG_STATE:
+			msg_type, msg_data, msg_owner = self.__decode_msg(response)
+			if msg_type == self.MSG_PACKET:
 				# update state if recieved state packet
 				self.state.update_state(msg_data)
 				# rebroadcast newly recieved 
-				self.__broadcast()
+				self.__broadcast_packet(msg_data, msg_owner)
 				# add newly retrieved packets to ttl if doesn't exist
 				for id in self.state.get_neighbours():
 					if id not in self.ttl:
@@ -159,28 +170,34 @@ class Router:
 	def __processor(self):
 		while True:
 			time.sleep(ROUTE_UPDATE_INTERVAL)
-			network = self.state.network.copy()
-			neighbours = set(self.state.network.keys()) - set([self.state.id])
-			# neighbours = self.state.get_neighbours()
-			path, cost = self.state.dijkstra(network)
-			print('I am Router', self.state.id)
-			for dest in neighbours:
-				s = path[dest]
-				seq = f'{dest}'
-				while s != self.state.id:
-					seq = f'{s}{seq}'
-					s = path[s]
-				print(f'Least cost path to router {dest}:{self.state.id}{seq} '\
-							f'and the cost is {cost[dest]}')
-			print()
+			try:
+				network = self.state.network.copy()
+				neighbours = set(network.keys())
+				neighbours.discard(self.state.id)
+				path, cost = self.state.dijkstra(network)
+				print('I am Router', self.state.id)
+				for dest in neighbours:
+					s = path[dest]
+					seq = f'{dest}'
+					while s != self.state.id:
+						seq = f'{s}{seq}'
+						s = path[s]
+					print(f'Least cost path to router {dest}:{self.state.id}{seq} '\
+								f'and the cost is {cost[dest]}')
+				print()
+			except Exception:
+				pass
 
-	def __encode_msg(self, msg_type, msg_data):
-		return pickle.dumps(f'{msg_type}{self.MSG_DELIMITER}{msg_data}')
+
+	def __encode_msg(self, msg_type, msg_data, msg_owner):
+		return pickle.dumps(f'{msg_type}'\
+			f'{self.MSG_DELIMITER}{msg_data}'\
+			f'{self.MSG_DELIMITER}{msg_owner}')
 
 	def __decode_msg(self, encoded_msg):
 		decoded_msg = pickle.loads(encoded_msg)
-		msg_type, msg_data = decoded_msg.split(self.MSG_DELIMITER)
-		return msg_type, msg_data
+		msg_type, msg_data, msg_owner = decoded_msg.split(self.MSG_DELIMITER)
+		return msg_type, msg_data, msg_owner
 
 	def setup(self, config_path):
 		with open(config_path, 'r') as file:
@@ -191,7 +208,6 @@ class Router:
 				id, weight, port = file.readline().split()
 				self.state.set_info(id, DEFAULT_HOST, port)
 				self.state.set_link(self.state.id, id, weight)
-				self.state.add_initial_neighbour(id)
 				self.ttl[id] = 5
 		file.close()
 
