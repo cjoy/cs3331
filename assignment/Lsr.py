@@ -1,55 +1,17 @@
 #!/usr/bin/env python3
-import sys, json, threading, time, socket
+import json, pickle,  time, threading, socket, sys
 
-ROUTE_UPDATE_INTERVAL = 30
+# ROUTE_UPDATE_INTERVAL = 30
+ROUTE_UPDATE_INTERVAL = 5
 UPDATE_INTERVAL = 1
 DEFAULT_HOST = '127.0.0.1'
 
 class State:
 	def __init__(self):
-		self.id = None					# current node id
-		self.network = dict()   # adj list graph of network
-		self.info = dict()      # details of all nodes ()
-
-	def set_link(self, src_id, dest_id, weight):
-		if src_id not in self.network:
-			self.network[src_id] = {}
-		if dest_id not in self.network:
-			self.network[dest_id] = {}
-		self.network[src_id][dest_id] = float(weight)
-		self.network[dest_id][src_id] = float(weight)
-
-	def del_host(self, id):
-		# remove adj list
-		if id in self.network:
-			del self.network[id]
-		# remove host info
-		if id in self.info:
-			del self.info[id]
-		# update other links
-		for k in self.network:
-			if id in self.network[k]:
-				del self.network[k][id]
-
-	def set_info(self, id, host, port):
-			self.info[id] = [host, int(port)]
-
-	def get_info(self, id):
-		return self.info[id]
-
-	def get_my_info(self):
-		return self.get_info(self.id)
-
-	def get_neighbours(self):
-		info = self.info.copy()
-		del info[self.id]
-		return info.keys()
-
-	def serialize(self):
-		return json.dumps({ 'network': self.network , 'info': self.info })
-
-	def deserialize(self, serialized):
-		return json.loads(serialized)
+		self.id = None
+		self.network = dict()
+		self.info = dict()
+		self.initial_neighbours = set()
 
 	def update_state(self, serialized_state):
 		updated = self.deserialize(serialized_state)
@@ -83,6 +45,46 @@ class State:
 			dists.pop(min_node)
 		return path, cost
 
+	def set_link(self, src_id, dest_id, weight):
+		if src_id not in self.network:
+			self.network[src_id] = {}
+		if dest_id not in self.network:
+			self.network[dest_id] = {}
+		self.network[src_id][dest_id] = float(weight)
+		self.network[dest_id][src_id] = float(weight)
+
+	def del_host(self, id):
+		# remove adj list
+		if id in self.network:
+			del self.network[id]
+		# remove host info
+		if id in self.info:
+			del self.info[id]
+		# update other links
+		for k in self.network:
+			if id in self.network[k]:
+				del self.network[k][id]
+
+	def set_info(self, id, host, port):
+			self.info[id] = [host, int(port)]
+
+	def get_info(self, id):
+		return self.info[id]
+
+	def get_neighbours(self):
+		neighbours = list(self.network.keys())
+		neighbours.remove(self.id)
+		return neighbours
+
+	def add_initial_neighbour(self, id):
+		self.initial_neighbours.add(id)
+
+	def serialize(self):
+		return json.dumps({ 'network': self.network , 'info': self.info })
+
+	def deserialize(self, serialized):
+		return json.loads(serialized)
+
 	def __repr__(self):
 		return	'{\n' \
 				f'\tnetwork: {json.dumps(self.network, sort_keys=True)},\n' \
@@ -91,14 +93,18 @@ class State:
 
 
 class Router:
+	'''
+	Router is an abstraction of a link state router variant that uses
+	the Hello protocol to deal with router failures.
+	'''
 	MSG_STATE = 'STATE'
 	MSG_DELIMITER = '|'
 	MSG_HELLO = 'HELLO'
 	HELLO_TTL = 3
 
 	def __init__(self):
-		self.state = State()	# route state instance
-		self.broadcasts = {}	# cache containing sent broadcasts
+		self.state = State()
+		self.broadcasts = {}
 		self.ttl = {}
 
 	def __broadcaster(self):
@@ -122,7 +128,7 @@ class Router:
 
 	def __listener(self):
 		server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		server_socket.bind(tuple(self.state.get_my_info()))
+		server_socket.bind(tuple(self.state.get_info(self.state.id)))
 		while True:
 			response, address = server_socket.recvfrom(1024)
 			msg_type, msg_data = self.__decode_msg(response)
@@ -164,10 +170,10 @@ class Router:
 			print()
 
 	def __encode_msg(self, msg_type, msg_data):
-		return f'{msg_type}{self.MSG_DELIMITER}{msg_data}'.encode()
+		return pickle.dumps(f'{msg_type}{self.MSG_DELIMITER}{msg_data}')
 
 	def __decode_msg(self, encoded_msg):
-		decoded_msg = encoded_msg.decode()
+		decoded_msg = pickle.loads(encoded_msg)
 		msg_type, msg_data = decoded_msg.split(self.MSG_DELIMITER)
 		return msg_type, msg_data
 
@@ -180,6 +186,8 @@ class Router:
 				id, weight, port = file.readline().split()
 				self.state.set_info(id, DEFAULT_HOST, port)
 				self.state.set_link(self.state.id, id, weight)
+				self.state.add_initial_neighbour(id)
+				self.ttl[id] = 5
 		file.close()
 
 	def run(self):
@@ -187,7 +195,7 @@ class Router:
 		for service in services:
 			thread = threading.Thread(target=service, daemon=True)
 			thread.start()
-		while True: time.sleep(UPDATE_INTERVAL)		# keep main thread alive
+		while True: time.sleep(UPDATE_INTERVAL) # keep main thread alive
 
 
 if __name__ == '__main__':
