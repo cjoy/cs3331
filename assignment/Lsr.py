@@ -2,7 +2,7 @@
 import json, pickle,  time, threading, socket, sys
 
 # ROUTE_UPDATE_INTERVAL = 30
-ROUTE_UPDATE_INTERVAL = 5
+ROUTE_UPDATE_INTERVAL = 10
 UPDATE_INTERVAL = 1
 DEFAULT_HOST = '127.0.0.1'
 
@@ -26,17 +26,17 @@ class State:
 		for id in new_ids:
 			self.network[id] = updated['network'][id]
 
-	def dijkstra(self):
-		dists = { n: float('inf') for n in self.network }
+	def dijkstra(self, network):
+		dists = { n: float('inf') for n in network }
 		dists[self.id] = 0
 		cost = {}
 		path = {}
 		# go through each node with min_distance
 		while dists:
 			min_node = min(dists, key=dists.get)
-			for neighbour in self.network[min_node].keys():
+			for neighbour in network[min_node].keys():
 				if neighbour not in cost:
-					new_dist = dists[min_node] + self.network[min_node][neighbour]
+					new_dist = dists[min_node] + network[min_node][neighbour]
 					if new_dist < dists[neighbour]:
 						dists[neighbour] = new_dist
 						path[neighbour] = min_node
@@ -135,6 +135,10 @@ class Router:
 			if msg_type == self.MSG_STATE:
 				# update state if recieved state packet
 				self.state.update_state(msg_data)
+				# add newly retrieved packets to ttl if doesn't exist
+				for id in self.state.get_neighbours():
+					if id not in self.ttl:
+						self.ttl[id] = self.HELLO_TTL
 			elif msg_type == self.MSG_HELLO:
 				# init host ttl as per hello protocol
 				self.ttl[msg_data] = self.HELLO_TTL
@@ -157,9 +161,11 @@ class Router:
 	def __processor(self):
 		while True:
 			time.sleep(ROUTE_UPDATE_INTERVAL)
-			path, cost = self.state.dijkstra()
+			network = self.state.network.copy()
+			neighbours = set(network.keys()) - set([self.state.id])
+			path, cost = self.state.dijkstra(network)
 			print('I am Router', self.state.id)
-			for dest in self.state.get_neighbours():
+			for dest in neighbours:
 				s = path[dest]
 				seq = f'{dest}'
 				while s != self.state.id:
