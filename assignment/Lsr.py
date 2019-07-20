@@ -28,8 +28,7 @@ class State:
 		dists[self.id] = 0
 		cost = {}
 		path = {}
-		# go through each node with min_distance
-		while dists:
+		while dists: # go through each node with min_distance
 			min_node = min(dists, key=dists.get)
 			for neighbour in network[min_node].keys():
 				if neighbour not in cost:
@@ -49,15 +48,10 @@ class State:
 		self.network[src_id][dest_id] = float(weight)
 		self.network[dest_id][src_id] = float(weight)
 
-	def del_host(self, id):
-		# remove adj list
-		if id in self.network:
+	def del_host(self, id):		
+		if id in self.network: # remove adj list
 			del self.network[id]
-		# remove host info
-		if id in self.info:
-			del self.info[id]
-		# update other links
-		for k in self.network:
+		for k in self.network: # update other links
 			if id in self.network[k]:
 				del self.network[k][id]
 
@@ -105,16 +99,18 @@ class Router:
 	def __broadcaster(self):
 		while True:
 			time.sleep(UPDATE_INTERVAL)
-			self.__broadcast_packet(self.state.serialize_packet(), self.state.id)
-			self.__broadcast_hello()
+			try:
+				self.__broadcast_packet(self.state.serialize_packet(), self.state.id)
+				self.__broadcast_hello()
+			except Exception:
+				pass
 
 	def __broadcast_packet(self, packet, owner):
 		client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		packet_message = self.__encode_msg(self.MSG_PACKET, packet, self.state.id)
-		# broadcast packet to all neighbours, except originated source
 		neighbours = set(self.state.get_neighbours())
 		neighbours.discard(owner)
-		for id in neighbours:
+		for id in neighbours: # broadcast packet to neighbours, except owner
 			host_info = self.state.get_info(id)
 			if id not in self.broadcasts:
 				self.broadcasts[id] = set()
@@ -137,35 +133,38 @@ class Router:
 		server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		server_socket.bind(tuple(self.state.get_info(self.state.id)))
 		while True:
-			response, address = server_socket.recvfrom(1024)
-			msg_type, msg_data, msg_owner = self.__decode_msg(response)
-			if msg_type == self.MSG_PACKET:
-				# update state if recieved state packet
-				self.state.update_state(msg_data)
-				# rebroadcast newly recieved 
-				self.__broadcast_packet(msg_data, msg_owner)
-				# add newly retrieved packets to ttl if doesn't exist
-				for id in self.state.get_neighbours():
-					if id not in self.ttl:
-						self.ttl[id] = self.HELLO_TTL
-			elif msg_type == self.MSG_HELLO:
-				# init host ttl as per hello protocol
-				self.ttl[msg_data] = self.HELLO_TTL
+			try:
+				response, address = server_socket.recvfrom(1024)
+				msg_type, msg_data, msg_owner = self.__decode_msg(response)
+				if msg_type == self.MSG_PACKET:
+					# update state if recieved state packet
+					self.state.update_state(msg_data)
+					# rebroadcast newly recieved 
+					self.__broadcast_packet(msg_data, msg_owner)
+					# add newly retrieved packets to ttl if doesn't exist
+					for id in self.state.get_neighbours():
+						if id not in self.ttl:
+							self.ttl[id] = self.HELLO_TTL
+				elif msg_type == self.MSG_HELLO:
+					# init host ttl as per hello protocol
+					self.ttl[msg_data] = self.HELLO_TTL
+			except Exception:
+				pass
 
 	def __updater(self):
 		while True:
 			time.sleep(UPDATE_INTERVAL)
-			# update trackers every second
-			for id in list(self.ttl.keys()):
-				if self.ttl[id] <= 0:
-					# remove host broadcast cache if host's dead
-					if id in self.broadcasts:
-						del self.broadcasts[id]
-					# remove from network
-					self.state.del_host(id)
-				else:
-					# update ttl if still alive
-					self.ttl[id] -= 1
+			try:
+				# update all ttl values every second
+				for id in list(self.ttl.keys()):
+					if self.ttl[id] <= 0:
+						if id in self.broadcasts:
+							del self.broadcasts[id]
+						self.state.del_host(id)
+					else: # update ttl if still alive					
+						self.ttl[id] -= 1
+			except Exception:
+				pass
 
 	def __processor(self):
 		while True:
@@ -186,7 +185,7 @@ class Router:
 								f'and the cost is {cost[dest]}')
 				print()
 			except Exception:
-				pass
+				print()	# Exception usually occurs if there's no path
 
 
 	def __encode_msg(self, msg_type, msg_data, msg_owner):
