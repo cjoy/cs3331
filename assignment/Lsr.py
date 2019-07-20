@@ -2,7 +2,7 @@
 import json, pickle,  time, threading, socket, sys
 
 # ROUTE_UPDATE_INTERVAL = 30
-ROUTE_UPDATE_INTERVAL = 10
+ROUTE_UPDATE_INTERVAL = 1
 UPDATE_INTERVAL = 1
 DEFAULT_HOST = '127.0.0.1'
 
@@ -14,17 +14,10 @@ class State:
 		self.initial_neighbours = set()
 
 	def update_state(self, serialized_state):
-		updated = self.deserialize(serialized_state)
-		new_ids = set(updated['info'].keys()).difference(set(self.info.keys()))
-		# update info table
-		self.info = { **self.info, **updated['info'] }
-		# update existing ids in network
-		for k in self.network.keys():
-			if k in updated['network']:
-				self.network[k] = { **self.network[k], **updated['network'][k] }
-		# add new hosts to network
-		for id in new_ids:
-			self.network[id] = updated['network'][id]
+		new = self.deserialize(serialized_state)
+		self.info = { **self.info, **new['info'] }
+		for k in new['edges'].keys():
+			self.set_link(new['id'], k, new['edges'][k])
 
 	def dijkstra(self, network):
 		dists = { n: float('inf') for n in network }
@@ -80,7 +73,7 @@ class State:
 		self.initial_neighbours.add(id)
 
 	def serialize(self):
-		return json.dumps({ 'network': self.network , 'info': self.info })
+		return json.dumps({ 'id': self.id, 'edges': self.network[self.id], 'info': self.info })
 
 	def deserialize(self, serialized):
 		return json.loads(serialized)
@@ -110,21 +103,24 @@ class Router:
 	def __broadcaster(self):
 		while True:
 			time.sleep(UPDATE_INTERVAL)
-			client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-			client_socket.settimeout(1.0)
-			state_message = self.__encode_msg(self.MSG_STATE, self.state.serialize())
-			hello_message = self.__encode_msg(self.MSG_HELLO, self.state.id)
-			for id in self.state.get_neighbours():
-				host_info = self.state.get_info(id)
-				if id not in self.broadcasts:
-					self.broadcasts[id] = set()
-				# send state message to neighbours
-				if state_message not in self.broadcasts[id]:
-					client_socket.sendto(state_message, tuple(host_info))
-					self.broadcasts[id].add(state_message)
-				# send state hello to neighbours (keep-alive)
-				client_socket.sendto(hello_message, tuple(host_info))
-			client_socket.close()
+			self.__broadcast()
+
+	def __broadcast(self):
+		client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+		client_socket.settimeout(1.0)
+		state_message = self.__encode_msg(self.MSG_STATE, self.state.serialize())
+		hello_message = self.__encode_msg(self.MSG_HELLO, self.state.id)
+		for id in self.state.get_neighbours():
+			host_info = self.state.get_info(id)
+			if id not in self.broadcasts:
+				self.broadcasts[id] = set()
+			# send state message to neighbours
+			if state_message not in self.broadcasts[id]:
+				client_socket.sendto(state_message, tuple(host_info))
+				self.broadcasts[id].add(state_message)
+			# send state hello to neighbours (keep-alive)
+			client_socket.sendto(hello_message, tuple(host_info))
+		client_socket.close()
 
 	def __listener(self):
 		server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -135,6 +131,8 @@ class Router:
 			if msg_type == self.MSG_STATE:
 				# update state if recieved state packet
 				self.state.update_state(msg_data)
+				# rebroadcast newly recieved 
+				self.__broadcast()
 				# add newly retrieved packets to ttl if doesn't exist
 				for id in self.state.get_neighbours():
 					if id not in self.ttl:
@@ -162,7 +160,8 @@ class Router:
 		while True:
 			time.sleep(ROUTE_UPDATE_INTERVAL)
 			network = self.state.network.copy()
-			neighbours = set(network.keys()) - set([self.state.id])
+			neighbours = set(self.state.network.keys()) - set([self.state.id])
+			# neighbours = self.state.get_neighbours()
 			path, cost = self.state.dijkstra(network)
 			print('I am Router', self.state.id)
 			for dest in neighbours:
